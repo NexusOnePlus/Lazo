@@ -1,0 +1,18 @@
+﻿<Window x:Class="Lazo.WelcomeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Width="420" Height="500" WindowStartupLocation="CenterScreen"
+        Topmost="True" ShowInTaskbar="False" MouseDown="Window_MouseDown">
+    <Border Name="Container" CornerRadius="16" Background="#202020" BorderBrush="#333" BorderThickness="1">
+        <Grid>
+            <Frame x:Name="NavigationFrame" NavigationUIVisibility="Hidden" Navigated="NavigationFrame_Navigated"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,30">
+                <Button x:Name="Page1Dot" Tag="Active" Style="{StaticResource PaginationDotStyle}" Click="PaginationDot_Click"/>
+                <Button x:Name="Page2Dot" Style="{StaticResource PaginationDotStyle}" Click="PaginationDot_Click"/>
+                <Button x:Name="Page3Dot" Style="{StaticResource PaginationDotStyle}" Click="PaginationDot_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

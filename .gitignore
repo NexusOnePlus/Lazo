@@ -1,0 +1,84 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio Code
+.vscode/
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.csproj.user
+*.vbproj.user
+*.userprefs
+
+# Visual Studio 2015/2017/2019/2022 cache/options directory
+*.VC.db
+*.VC.VC.opendb
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+*.DotSettings
+*.user.DotSettings
+
+# NuGet
+packages/
+NuGet.Config
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE
+*.swp
+*.swo
+*~
+
+# Output of the dotnet build
+**/bin
+**/obj
+**/out
+
+# User-specific settings
+.vssettings
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+Temp/
+
+# Configuration files that might contain sensitive data
+appsettings.Production.json
+appsettings.Development.json
+
+# Windows Forms Designer generated files
+**/*.g.cs
+**/*.g.i.cs
+
+# User files for debugging symbols
+*.pdb
+*.userprefs
+
+# Environment specific settings
+.config/dotnet-tools.json
