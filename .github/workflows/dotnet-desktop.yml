@@ -1,0 +1,100 @@
+name: Lazo Desktop Release
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_version:
+        description: 'Base Version (ej: 1.0)'
+        required: true
+        default: '1.0'
+      release_title:
+        description: 'Title Release'
+        required: false
+      release_notes:
+        description: 'Release Notes'
+        required: false
+      prerelease:
+        description: 'Pre-release (oculta en GitHub, pero válida para updates)'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build-pack:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install .NET 9
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Get next version
+      id: version
+      run: |
+        base="${{ github.event.inputs.base_version }}"
+        last_tag=$(git tag --list "v${base}.*" | sort -V | tail -n 1)
+        echo "Último tag encontrado: $last_tag"
+        if [ -z "$last_tag" ]; then
+          next_version="${base}.1"
+        else
+          patch=$(echo $last_tag | awk -F. '{print $NF}')
+          next_patch=$((patch + 1))
+          next_version="${base}.${next_patch}"
+        fi
+        echo "Versión calculada: $next_version"
+        echo "version=$next_version" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Publish (Build App)
+      run: |
+        dotnet publish Lazo.csproj `
+          -c Release `
+          --self-contained `
+          -r win-x64 `
+          -o publish
+      shell: powershell
+
+    - name: Install Velopack Tool
+      run: dotnet tool install -g vpk
+      shell: bash
+
+    - name: Create Velopack Release
+      run: |
+        vpk pack \
+          -u lazo \
+          -v ${{ steps.version.outputs.version }} \
+          -p publish \
+          -e Lazo.exe
+      shell: bash
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: >-
+          ${{ github.event.inputs.release_title != '' 
+            && format('v{1} {0}', github.event.inputs.release_title, steps.version.outputs.version) 
+            || format('Release v{0}', steps.version.outputs.version) }}
+        body: |
+          ${{ github.event.inputs.release_notes }}
+        files: Releases/*
+        prerelease: ${{ github.event.inputs.prerelease }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload installer for Ko-fi
+      uses: actions/upload-artifact@v4
+      with:
+        name: Lazo-Installer
+        path: |
+          Releases/*.exe
+          publish/**
