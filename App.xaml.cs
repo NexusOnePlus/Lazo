@@ -4,83 +4,111 @@ using System.Windows;
 using System.Windows.Forms;
 using Application = System.Windows.Application;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
+using Velopack;
+using MessageBox = System.Windows.MessageBox;
 
-namespace Lazo
+namespace Lazo;
+
+public partial class App : Application
 {
-    public partial class App : Application
+    [STAThread]
+    private static void Main(string[] args)
     {
-        private NotifyIcon? _trayIcon;
-
-        protected override void OnStartup(StartupEventArgs e)
+        bool createdNew;
+        using (var mutex = new System.Threading.Mutex(true, "IconizerAppMutex", out createdNew))
         {
-            base.OnStartup(e);
-
-            InitializeTrayIcon();
-
-            if (Settings1.Default.IsFirstLaunch || Settings1.Default.ShowStartupAnimation)
+            if (!createdNew)
             {
-                var welcome = new WelcomeWindow();
-                welcome.Show();
-
-                if (Settings1.Default.IsFirstLaunch)
-                {
-                    Settings1.Default.IsFirstLaunch = false;
-                    Settings1.Default.Save();
-                }
+                MessageBox.Show("App already running.", "Unique instance", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
-        }
 
-        private void InitializeTrayIcon()
-        {
             try
             {
-                var contextMenu = new ContextMenuStrip();
-                contextMenu.Items.Add("Configuración", null, OnSettingsClick);
-                contextMenu.Items.Add("-");
-                contextMenu.Items.Add("Salir", null, OnExitClick);
+                VelopackApp.Build().Run();
 
-                _trayIcon = new NotifyIcon()
-                {
-                    Icon = System.Drawing.Icon.ExtractAssociatedIcon(
-                        System.Reflection.Assembly.GetExecutingAssembly().Location
-                    ),
-                    Visible = true,
-                    Text = "Lazo Timer",
-                    ContextMenuStrip = contextMenu
-                };
-
-                _trayIcon.MouseClick += OnTrayClick;
+                var app = new App();
+                app.InitializeComponent();
+                app.Run();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[ERROR] Could not initialize Tray Icon: {ex.Message}");
+                MessageBox.Show($"Fatal error on startup runtime: {ex.Message}", "Start failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+    }
 
-        private void OnSettingsClick(object? sender, EventArgs e)
-        {
-            var settings = new SettingsWindow();
-            settings.Show();
-            
-        }
+    private NotifyIcon? _trayIcon;
 
-        private void OnExitClick(object? sender, EventArgs e)
-        {
-            Application.Current.Shutdown();
-        }
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
 
-        private void OnTrayClick(object? sender, MouseEventArgs e)
+        InitializeTrayIcon();
+
+        if (Settings1.Default.IsFirstLaunch || Settings1.Default.ShowStartupAnimation)
         {
-            if (e.Button == MouseButtons.Left)
+            var welcome = new WelcomeWindow();
+            welcome.Show();
+
+            if (Settings1.Default.IsFirstLaunch)
             {
-                LazoWindow.ShowLazo();
+                Settings1.Default.IsFirstLaunch = false;
+                Settings1.Default.Save();
             }
         }
+    }
 
-        protected override void OnExit(ExitEventArgs e)
+    private void InitializeTrayIcon()
+    {
+        try
         {
-            _trayIcon?.Dispose();
-            base.OnExit(e);
+            var contextMenu = new ContextMenuStrip();
+            contextMenu.Items.Add("Configuración", null, OnSettingsClick);
+            contextMenu.Items.Add("-");
+            contextMenu.Items.Add("Salir", null, OnExitClick);
+
+            _trayIcon = new NotifyIcon()
+            {
+                Icon = System.Drawing.Icon.ExtractAssociatedIcon(
+                    System.Reflection.Assembly.GetExecutingAssembly().Location
+                ),
+                Visible = true,
+                Text = "Lazo Timer",
+                ContextMenuStrip = contextMenu
+            };
+
+            _trayIcon.MouseClick += OnTrayClick;
         }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ERROR] Could not initialize Tray Icon: {ex.Message}");
+        }
+    }
+
+    private void OnSettingsClick(object? sender, EventArgs e)
+    {
+        var settings = new SettingsWindow();
+        settings.Show();
+        
+    }
+
+    private void OnExitClick(object? sender, EventArgs e)
+    {
+        Application.Current.Shutdown();
+    }
+
+    private void OnTrayClick(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+        {
+            LazoWindow.ShowLazo();
+        }
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _trayIcon?.Dispose();
+        base.OnExit(e);
     }
 }

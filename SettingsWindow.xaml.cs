@@ -1,6 +1,13 @@
-﻿using System.Windows;
+using System.Net.Http;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using Microsoft.Win32;
+using Velopack;
+using Velopack.Sources;
 using MessageBox = System.Windows.MessageBox;
 
 namespace Lazo
@@ -14,12 +21,130 @@ namespace Lazo
         {
             InitializeComponent();
             LoadSettings();
+            Loaded += OnLoaded;
+            DisplayVersion();
         }
 
         private void LoadSettings()
         {
             StartupCheckBox.IsChecked = IsStartupEnabled();
             AnimationCheckBox.IsChecked = Settings1.Default.ShowStartupAnimation;
+        }
+
+        private async void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            ChangelogText.Text = "Loading changelog...";
+            ChangelogText.Text = await FetchChangelogAsync();
+        }
+
+        public void DisplayVersion()
+        {
+            var token = "";
+            var source = new Velopack.Sources.GithubSource("https://github.com/NexusOnePlus/Lazo", token, true);
+            var updateManager = new UpdateManager(source);
+            string version;
+            if (updateManager.IsInstalled)
+            {
+                version = updateManager.CurrentVersion?.ToString() ?? "Unknown";
+            }
+            else
+            {
+                version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Debug";
+            }
+            VersionText.Text = $"v{version}";
+        }
+
+        private async void UpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            var token = "";
+            var source = new Velopack.Sources.GithubSource("https://github.com/NexusOnePlus/Lazo", token, true);
+            var updateManager = new UpdateManager(source);
+            try
+            {
+                UpdateButton.IsEnabled = false;
+                UpdateButtonText.Text = "Checking...";
+                UpdateSpinner.Visibility = Visibility.Visible;
+
+                if (!updateManager.IsInstalled)
+                {
+                    MessageBox.Show("Updates can only be checked in an installed version of the application.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                try
+                {
+                    var newVersion = await updateManager.CheckForUpdatesAsync();
+                    if (newVersion == null)
+                    {
+                        MessageBox.Show("Your application is up to date.", "No Updates", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    UpdateButtonText.Text = "Downloading...";
+                    try
+                    {
+                        await updateManager.DownloadUpdatesAsync(newVersion);
+                    }
+                    catch (Exception exDownload)
+                    {
+                        MessageBox.Show($"Error during download:\n{exDownload}", "Download Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    try
+                    {
+                        updateManager.ApplyUpdatesAndRestart(newVersion);
+                    }
+                    catch (Exception exApply)
+                    {
+                        MessageBox.Show($"Error applying update:\n{exApply}", "Apply Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                }
+                catch (Exception exCheck)
+                {
+                    MessageBox.Show($"Error checking for updates:\n{exCheck}", "Check Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"General error in update process:\n{ex}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                UpdateButton.IsEnabled = true;
+                UpdateButtonText.Text = "Check for Updates";
+                UpdateSpinner.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private async Task<string> FetchChangelogAsync()
+        {
+            try
+            {
+                using var http = new HttpClient();
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("Lazo-client");
+
+                var json = await http.GetStringAsync("https://api.github.com/repos/NexusOnePlus/Lazo/releases");
+                var releases = JsonSerializer.Deserialize<GitHubRelease[]>(json);
+
+                if (releases != null && releases.Length > 0)
+                {
+                    return releases[0].body ?? "No changelog available.";
+                }
+
+                return "No releases found.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error fetching changelog: {ex.Message}";
+            }
+        }
+
+        public class GitHubRelease
+        {
+            public string? body { get; set; }
         }
 
         private void StartupCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -73,7 +198,7 @@ namespace Lazo
             }
             catch
             {
-                // Si hay error al leer el registro, asumir que no está habilitado
+                //TODO: Log error
             }
             return false;
         }
@@ -88,15 +213,12 @@ namespace Lazo
                     {
                         if (enable)
                         {
-                            // Agregar al inicio
                             string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                            // Para .NET 5+ necesitas obtener el .exe correctamente
                             exePath = exePath.Replace(".dll", ".exe");
                             key.SetValue(APP_NAME, $"\"{exePath}\"");
                         }
                         else
                         {
-                            // Remover del inicio
                             key.DeleteValue(APP_NAME, false);
                         }
                     }
